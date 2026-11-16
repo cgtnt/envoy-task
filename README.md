@@ -21,38 +21,26 @@ An HTTP response cache registered implemented as an Envoy extension and register
 
 The extension is already registered in Envoy's build configuration, so building this fork includes it in the binary.
 
-The following commands use the `fastbuild` configuration.
+The following commands use the `fastbuild` configuration with two build jobs.
 
-From the `envoy_task` root, initialize the submodule and open Envoy's build container:
+From the project root, initialize the submodule, then build and copy the executable:
 
 ```bash
 git submodule update --init --recursive
 cd envoy
-./ci/run_envoy_docker.sh bash
 ```
 
-Inside the container:
-
 ```bash
-bazel build -c fastbuild //source/exe:envoy-static
-cp bazel-bin/source/exe/envoy-static /source/envoy-simple-cache
-exit
-```
-
-Back on the host, from `envoy/`, put the binary where the experiment scripts expect it:
-
-```bash
-mkdir -p ../bin
-mv envoy-simple-cache ../bin/envoy-coalescing
-cd ..
+SOURCE_DIR="$PWD/.." ENVOY_DOCKER_SOURCE_DIR=/source/envoy ./ci/run_envoy_docker.sh 'bazel build -c fastbuild --jobs=2 //source/exe:envoy-static && mkdir -p /source/bin && cp -L bazel-bin/source/exe/envoy-static /source/bin/envoy-coalescing'
 ```
 
 ## Run tests and experiments
 
-Run the extension's unit tests inside the same build container:
+Run the extension's unit tests from the `envoy/` directory on the host. This opens a
+new container with the same source mount and build cache:
 
 ```bash
-bazel test -c fastbuild //test/extensions/filters/http/simple_cache/...
+SOURCE_DIR="$PWD/.." ENVOY_DOCKER_SOURCE_DIR=/source/envoy ./ci/run_envoy_docker.sh 'bazel test -c fastbuild --jobs=2 --test_output=errors //test/extensions/filters/http/simple_cache/...'
 ```
 
 Run the HTTP integration tests from the repository root on the host 
